@@ -45,8 +45,8 @@
             {{ render_field(form.answer) }}
           </fieldset>
           <div id="captcha_imgs">
-            {% for img in form.imgs %}
-              <img src="data:image/png;base64, {{ img[0] }}" index="{{ loop.index }}" alt="" srcset="">
+            {% for piece in form.pieces %}
+              <img src="data:image/png;base64, {{ piece.img_base64 }}" index="{{ loop.index }}" alt="" srcset="">
             {% endfor %}
           </div>
           <button type="submit" class="btn btn-primary narrow" id="submit">

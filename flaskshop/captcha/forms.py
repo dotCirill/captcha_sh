@@ -1,20 +1,21 @@
 from flask_wtf import FlaskForm
 from flask_login import current_user
-from wtforms import StringField
+from wtforms import HiddenField
 
 from typing import List, Dict, Tuple
+from collections import namedtuple
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from io import BytesIO
 import base64
 import random
 
 letters = {}
-
+Piece = namedtuple('Piece', ['img_base64', 'letters'])
 
 class CaptchaForm(FlaskForm):
-    answer = StringField("Answer")
+    answer = HiddenField("")
     passwd: str
-    imgs: List[Tuple[str, str]] # image, letters
+    pieces: List[Piece]
 
     def __init__(self, *args, **kwargs):
         super(CaptchaForm, self).__init__(*args, **kwargs)
@@ -22,47 +23,57 @@ class CaptchaForm(FlaskForm):
     def generate(self):
         self.passwd = current_user.email
         IMG_COUNT = 8
-        piece_len = 100
-        min_letters_in_piece = int(len(self.passwd)/8)
-        letters_in_pieces = []
-        for i in range(0, 8):
-            letters_in_pieces.append(min_letters_in_piece)
+        PIECE_SIZE_PX = 100
+        BG_COLOR = '#223344'
+        FONT_FILE = '/app/flaskshop/captcha/Roboto-Bold.ttf'
+        
+        piece_letters: List[str] = [""] * 8
 
-        if min_letters_in_piece * 8 < len(self.passwd):
-            remains =  len(self.passwd) - (min_letters_in_piece * 8)
-            for j in range(0, remains):
-                letters_in_pieces[j] += 1
+        min_letters_in_piece = len(self.passwd) // 8
+        remains = len(self.passwd) % 8
+        pieces_without_extra_letter = list(range(8))
+        for _ in range(remains):
+            x = random.randint(0, len(pieces_without_extra_letter) - 1)
+            pieces_without_extra_letter.pop(x)
 
-        index = 0
-        self.imgs = []
-        random_coordinate = lambda: random.randint(0, piece_len - 1)
+        piece_i = 0
+        letter_i = 0
+        for letter in self.passwd:
+            piece_letters[piece_i] += letter
+            letter_i += 1
+            extra_letter = 1 if piece_i not in pieces_without_extra_letter else 0
+            if letter_i >= min_letters_in_piece + extra_letter:
+                letter_i = 0
+                piece_i += 1
+
+        self.pieces = []
+        random_coordinate = lambda: random.randint(0, PIECE_SIZE_PX - 1)
         letter_i = 0
 
         for i in range(IMG_COUNT):
-            img = Image.new('RGBA', (piece_len, piece_len), '#223344')
-            if letters_in_pieces[i] == 0:
+            img = Image.new('RGBA', (PIECE_SIZE_PX, PIECE_SIZE_PX), BG_COLOR)
+            if not piece_letters[i]:
                 continue
 
-            offset = int(piece_len/(letters_in_pieces[i] + 1)) + 10
+            offset = int(PIECE_SIZE_PX/(len(piece_letters[i]) + 1)) + 10
             draw = ImageDraw.Draw(img)
-            headline = ImageFont.truetype('/app/flaskshop/captcha/Roboto-Bold.ttf', size = offset)
-            draw.text((offset/2, 40 - offset/2), self.passwd[index:index + letters_in_pieces[i]], font = headline)
-            index += letters_in_pieces[i]
+            font = ImageFont.truetype(FONT_FILE, size=offset)
+            draw.text((offset/2, 40 - offset/2), piece_letters[i], font=font)
             for angle in (0, 45, 90, 180):
                 for _ in range(random.randint(5, 7)):
-                    draw.arc([random_coordinate(), random_coordinate(), random_coordinate(), random_coordinate()], 0, angle, fill='white', width=4)
+                    draw.arc([random_coordinate(), random_coordinate(), random_coordinate(), random_coordinate()], 0, angle, fill='white', width=random.randint(3, 6))
             
             img = img.filter(ImageFilter.SMOOTH).filter(ImageFilter.BoxBlur(1.5))
             buffered = BytesIO()
             img.save(buffered, format='PNG')
-            img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
-            self.imgs.append((img_str, self.passwd[letter_i:letter_i + letters_in_pieces[i]]))
-            letter_i += letters_in_pieces[i]
+            img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+            piece = Piece(img_b64, piece_letters[i])
+            self.pieces.append(piece)
         
-        random.shuffle(self.imgs)
+        random.shuffle(self.pieces)
         letters[current_user.id] = ''
-        for img in self.imgs:
-            letters[current_user.id] += img[1] + '\n'
+        for piece in self.pieces:
+            letters[current_user.id] += piece.letters + '\n'
 
     def validate(self):
         answer_str = ''
