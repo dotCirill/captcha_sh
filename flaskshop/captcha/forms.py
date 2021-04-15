@@ -1,3 +1,4 @@
+from datetime import timedelta
 from flask_wtf import FlaskForm
 from flask_login import current_user
 from wtforms import HiddenField
@@ -8,13 +9,22 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from io import BytesIO
 import base64
 import random
+from redis import Redis
+from flaskshop.settings import Config
+from datetime import timedelta
 
-letters = {}
+# We are using Redis for storing img->letters converting
+REDIS_DB_NUMBER = 5
+CAPTCHA_TTL = timedelta(minutes=10) # time to live is redis db
+
+rdb = Redis.from_url(Config.REDIS_URL, db=REDIS_DB_NUMBER)
+
+# We store image as base64 because it will be easily forgotten after sending it to user with html
 Piece = namedtuple('Piece', ['img_base64', 'letters'])
 
 class CaptchaForm(FlaskForm):
-    answer = HiddenField("")
-    passwd: str
+    answer = HiddenField("") # permutation of images, set of numbers like "3 2 5 ..."
+    passwd: str # email or another personal data 
     pieces: List[Piece]
 
     def __init__(self, *args, **kwargs):
@@ -27,6 +37,7 @@ class CaptchaForm(FlaskForm):
         BG_COLOR = '#223344'
         FONT_FILE = '/app/flaskshop/captcha/Roboto-Bold.ttf'
         
+        # distribution of letters between pictures
         piece_letters: List[str] = [""] * 8
 
         min_letters_in_piece = len(self.passwd) // 8
@@ -48,7 +59,6 @@ class CaptchaForm(FlaskForm):
 
         self.pieces = []
         random_coordinate = lambda: random.randint(0, PIECE_SIZE_PX - 1)
-        letter_i = 0
 
         for i in range(IMG_COUNT):
             img = Image.new('RGBA', (PIECE_SIZE_PX, PIECE_SIZE_PX), BG_COLOR)
@@ -59,6 +69,8 @@ class CaptchaForm(FlaskForm):
             draw = ImageDraw.Draw(img)
             font = ImageFont.truetype(FONT_FILE, size=offset)
             draw.text((offset/2, 40 - offset/2), piece_letters[i], font=font)
+           
+            # add some stuff and filters
             for angle in (0, 45, 90, 180):
                 for _ in range(random.randint(5, 7)):
                     draw.arc([random_coordinate(), random_coordinate(), random_coordinate(), random_coordinate()], 0, angle, fill='white', width=random.randint(3, 6))
@@ -71,13 +83,21 @@ class CaptchaForm(FlaskForm):
             self.pieces.append(piece)
         
         random.shuffle(self.pieces)
-        letters[current_user.id] = ''
+        
+        letters = ''
         for piece in self.pieces:
-            letters[current_user.id] += piece.letters + '\n'
+            letters += piece.letters + '\n'
+
+        rdb.setex(current_user.id, CAPTCHA_TTL, value=letters)
 
     def validate(self):
         answer_str = ''
-        parts = letters[current_user.id].split('\n')
+        parts_lines = rdb.get(current_user.id)
+        if not parts_lines:
+            self.answer.errors = ["err4"]
+            return False
+        
+        parts = parts_lines.decode('utf-8').split('\n')
         for img_i in self.answer.data.split():
             if not img_i.isdigit():
                 self.answer.errors = ["err1"]
