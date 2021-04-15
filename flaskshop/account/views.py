@@ -3,6 +3,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user, login_user, logout_user
 from pluggy import HookimplMarker
+from ..captcha.views import captcha_required
 
 from .forms import AddressForm, LoginForm, RegisterForm, ChangePasswordForm
 from .models import UserAddress, User
@@ -25,6 +26,7 @@ def login():
         login_user(form.user)
         redirect_url = request.args.get("next") or url_for("public.home")
         flash("You are log in.", "success")
+        current_user.update(bot = True)
         return redirect(redirect_url)
     else:
         flash_errors(form)
@@ -32,6 +34,7 @@ def login():
 
 
 @login_required
+@captcha_required
 def logout():
     """Logout."""
     logout_user()
@@ -108,7 +111,6 @@ def delete_address(id):
     if user_address in current_user.addresses:
         UserAddress.delete(user_address)
     return redirect(url_for("account.index") + "#addresses")
-
 
 @impl
 def flaskshop_load_blueprints(app):

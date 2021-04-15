@@ -88,7 +88,6 @@ class LoginForm(FlaskForm):
             return False
         return True
 
-
 class ChangePasswordForm(FlaskForm):
     old_password = PasswordField("Old Password", validators=[DataRequired()])
     password = PasswordField("Password", validators=[DataRequired()])

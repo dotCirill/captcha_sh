@@ -17,6 +17,7 @@ from .models import Order, OrderPayment
 from .payment import zhifubao
 from flaskshop.extensions import csrf_protect
 from flaskshop.constant import ShipStatusKinds, PaymentStatusKinds, OrderStatusKinds
+from ..captcha.views import captcha_required
 
 impl = HookimplMarker("flaskshop")
 
@@ -83,6 +84,7 @@ def ali_notify():
 
 # for test pay flow
 @login_required
+@captcha_required
 def test_pay(token):
     payment = create_payment(token, "testpay")
     payment.pay_success(paid_at=datetime.now())

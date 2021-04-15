@@ -57,3 +57,6 @@ migrations/
 .idea/
 .venv/
 .vscode/
+
+db_data
+dump.rdb

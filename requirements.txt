@@ -52,4 +52,5 @@ visitor==0.1.3
 Werkzeug==0.16.1
 WTForms==2.2.1
 zipp==2.1.0
+Pillow==8.1.2
 -e ./plugin_example

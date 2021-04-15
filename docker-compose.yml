@@ -8,7 +8,7 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci     
      volumes:
-       - db_data:/var/lib/mysql
+       - ./db_data:/var/lib/mysql
      restart: unless-stopped
      environment:
        MYSQL_ROOT_PASSWORD: root
@@ -18,7 +18,7 @@ services:
     image: library/redis:5.0-alpine
     restart: unless-stopped
     volumes:
-      - redis-data:/data
+      - ./redis-data:/data
 
   esearch:
     image: elasticsearch:7.5.0
@@ -26,7 +26,7 @@ services:
     environment:
       discovery.type: single-node
     volumes:
-      - esearch-data:/usr/share/elasticsearch/data
+      - ./esearch-data:/usr/share/elasticsearch/data
 
   web:
     build: .
@@ -41,8 +41,11 @@ services:
       REDIS_URI: redis://redis:6379
       ESEARCH_URI: esearch
     restart: unless-stopped
+    volumes:
+      - .:/app
      
-volumes:
-  db_data:
-  redis-data:
-  esearch-data:
+# volumes:
+#   db_data:
+#   redis-data:
+#   esearch-data:
+#   web:

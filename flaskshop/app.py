@@ -23,6 +23,7 @@ from flaskshop.utils import log_slow_queries, jinja_global_varibles
 from .account import views as account_view
 from .checkout import views as checkout_view
 from .discount import views as discount_view
+from .captcha import views as captcha_view
 from .public import views as public_view
 from .product import views as product_view
 from .order import views as order_view
