@@ -60,3 +60,7 @@ migrations/
 
 db_data
 dump.rdb
+
+generated_captcha_images*
+generated_test
+emails.txt
