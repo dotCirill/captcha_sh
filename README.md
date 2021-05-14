@@ -23,7 +23,7 @@ def test_pay(token):
     return redirect(url_for("order.payment_success"))
 ```
 
-Далее ридми о "поднятии" сайте от разработчиков.
+Далее ридми о "поднятии" сайте от разработчиков (`docker-compose up`).
 
 # Flask Shop - An Amazing Project
 
